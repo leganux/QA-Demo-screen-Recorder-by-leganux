@@ -1,0 +1,24 @@
+{
+  "name": "browser-agent-recorder",
+  "version": "1.0.0",
+  "description": "MVP de agente de navegador con Playwright + OpenAI para automatizar tareas y grabar video",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "keywords": [
+    "playwright",
+    "openai",
+    "browser-agent",
+    "automation",
+    "recorder"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.1.0",
+    "dotenv": "^16.6.1",
+    "openai": "^4.104.0",
+    "playwright": "^1.54.2"
+  }
+}
