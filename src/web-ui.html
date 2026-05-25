@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browser Agent Recorder - Web UI</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #141b2e;
+      --panel-soft: #10172a;
+      --text: #e7ecff;
+      --muted: #a7b0d6;
+      --accent: #5d7cff;
+      --ok: #26c281;
+      --warn: #ffb020;
+      --err: #ff5d5d;
+      --border: #253051;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 10% 10%, #1b2340, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-soft));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    h1,
+    h2 {
+      margin: 0 0 10px;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+    }
+
+    h2 {
+      font-size: 1rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b1328;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      width: auto;
+      min-width: 150px;
+      cursor: pointer;
+      background: var(--accent);
+      border: none;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #293557;
+    }
+
+    button.danger {
+      background: #8a2a2a;
+    }
+
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      background: #0b1328;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .pill.running {
+      color: var(--warn);
+      border-color: #6c5624;
+    }
+
+    .pill.done {
+      color: var(--ok);
+      border-color: #1f5940;
+    }
+
+    .pill.error,
+    .pill.stopped {
+      color: var(--err);
+      border-color: #692c2c;
+    }
+
+    .logs {
+      background: #070d1d;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      height: 380px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="panel">
+      <h1>Browser Agent Recorder · Interfaz Web</h1>
+      <p class="hint">URL provisional local para usar esta UI: <strong id="provisional-url">(cargando...)</strong></p>
+      <p class="hint">La versión CLI se mantiene: puedes seguir usando <code>npm run start</code>.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Configuración de ejecución</h2>
+      <form id="run-form" class="grid">
+        <div class="full">
+          <label for="url">URL objetivo</label>
+          <input id="url" name="url" type="url" placeholder="https://mi-sistema.com" required />
+        </div>
+
+        <div class="full">
+          <label for="prompt">Prompt / objetivo</label>
+          <textarea id="prompt" name="prompt" placeholder="Ej: Registra una persona demo" required></textarea>
+        </div>
+
+        <div>
+          <label for="clearCache">Limpiar caché/sesión</label>
+          <select id="clearCache" name="clearCache">
+            <option value="false" selected>No</option>
+            <option value="true">Sí</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="humanCursor">Cursor humano</label>
+          <select id="humanCursor" name="humanCursor">
+            <option value="">Usar default del .env</option>
+            <option value="true">Activado</option>
+            <option value="false">Desactivado</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="browserErrorLog">Log de errores navegador</label>
+          <select id="browserErrorLog" name="browserErrorLog">
+            <option value="">Usar default del .env</option>
+            <option value="true">Activado</option>
+            <option value="false">Desactivado</option>
+          </select>
+        </div>
+
+        <div class="full actions">
+          <button type="submit">Iniciar ejecución</button>
+          <button type="button" class="danger" id="stop-btn">Detener ejecución</button>
+          <button type="button" class="secondary" id="refresh-btn">Actualizar estado</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Estado y logs</h2>
+      <div class="status-line">
+        <span class="pill" id="status-pill">status: idle</span>
+        <span id="pid-label">pid: -</span>
+        <span id="started-label">inicio: -</span>
+        <span id="finished-label">fin: -</span>
+      </div>
+      <div class="hint" id="args-label" style="margin-top:8px">args: -</div>
+      <div class="logs" id="logs-box"></div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('run-form');
+    const stopBtn = document.getElementById('stop-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const logsBox = document.getElementById('logs-box');
+    const statusPill = document.getElementById('status-pill');
+    const pidLabel = document.getElementById('pid-label');
+    const startedLabel = document.getElementById('started-label');
+    const finishedLabel = document.getElementById('finished-label');
+    const argsLabel = document.getElementById('args-label');
+    const provisionalUrl = document.getElementById('provisional-url');
+
+    provisionalUrl.textContent = window.location.href;
+
+    async function fetchStatus() {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+
+      statusPill.className = `pill ${data.status || ''}`;
+      statusPill.textContent = `status: ${data.status || '-'}`;
+      pidLabel.textContent = `pid: ${data.pid || '-'}`;
+      startedLabel.textContent = `inicio: ${data.startedAt || '-'}`;
+      finishedLabel.textContent = `fin: ${data.finishedAt || '-'}`;
+      argsLabel.textContent = `args: ${(data.lastRunArgs || []).join(' ') || '-'}`;
+
+      logsBox.textContent = (data.logs || []).join('\n');
+      logsBox.scrollTop = logsBox.scrollHeight;
+    }
+
+    async function postJson(url, payload = {}) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || data.message || `Error HTTP ${res.status}`);
+      }
+      return data;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+
+      try {
+        await postJson('/api/run', payload);
+        await fetchStatus();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      try {
+        await postJson('/api/stop');
+        await fetchStatus();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    refreshBtn.addEventListener('click', () => {
+      fetchStatus().catch(() => {});
+    });
+
+    setInterval(() => {
+      fetchStatus().catch(() => {});
+    }, 1500);
+
+    fetchStatus().catch(() => {});
+  </script>
+</body>
+
+</html>

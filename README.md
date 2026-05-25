@@ -58,6 +58,8 @@ Variables disponibles:
 - `OBSERVE_RETRIES`: reintentos al capturar estado de página en transición.
 - `RETRY_BASE_WAIT_MS`: espera base incremental entre reintentos.
 
+Adicionalmente, el agente genera un log JSON incremental con pasos ejecutados en `LOG_DIR` (archivo `agent-steps-*.json`) para mantener contexto histórico de ejecución.
+
 ---
 
 ## 3) Ejecución
@@ -97,6 +99,68 @@ node src/app.js --url="https://mi-sistema.com" --prompt="Registra una persona de
 ```bash
 npm run start -- --url="https://mi-sistema.com" --prompt="Crea un evento de boda demo"
 ```
+
+### Interfaz web (URL provisional local)
+
+Si prefieres capturar URL/prompt/configuración en una UI web, puedes levantar una interfaz local (sin quitar la versión de consola):
+
+```bash
+npm run web
+```
+
+Al iniciar, verás en consola una URL provisional como:
+
+```text
+http://127.0.0.1:8787
+```
+
+Opcionalmente puedes cambiar host/puerto:
+
+```bash
+WEB_HOST=127.0.0.1 WEB_PORT=8787 npm run web
+```
+
+Desde la interfaz web puedes:
+
+- capturar `url` y `prompt`
+- activar/desactivar `clear-cache`
+- activar/desactivar `human-cursor`
+- activar/desactivar `browser-error-log`
+- ejecutar y ver logs en vivo
+- detener la ejecución actual
+
+> La ejecución de consola se mantiene intacta (`npm run start`).
+
+### Logs de proceso en consola
+
+Durante la ejecución se imprimen logs de trazabilidad para saber qué está ocurriendo y qué artefactos se van generando (screenshots/video).
+
+Ejemplo de salida:
+
+```text
+[App] Iniciando Browser Agent Recorder...
+[Recorder] Asegurando directorio de screenshots: /.../screenshots
+[Browser] Lanzando contexto persistente de Playwright con grabación de video...
+[Agent][Paso 1] Observando pantalla...
+[Observer][Paso 1] Capturando screenshot de observación (intento 1/3): /.../screenshots/step-01-try-01-....png
+[Agent][Paso 1] Estado observado -> url=https://..., screenshot=/.../screenshots/step-01-try-01-....png, botones=5, links=12, campos=4
+[Agent][Paso 1] Screenshot adjuntada a la petición multimodal del LLM.
+[Agent][Paso 1] IA respondió acción=click, selector=text=Guardar, value=n/a
+[Agent][Paso 1] Ejecutando acción click...
+[Agent][Paso 1] Acción click ejecutada correctamente.
+[App] Log JSON de pasos del agente: /.../logs/agent-steps-2026-05-25-153500.json
+[Recorder] Video final listo: /.../videos/tutorial-2026-05-25-151000.webm
+[App] Video generado en: /.../videos/tutorial-2026-05-25-151000.webm
+```
+
+Con esto puedes identificar claramente:
+
+- la ruta de cada screenshot por paso
+- cuándo falla un paso y se genera screenshot de error
+- cuándo la screenshot se adjunta al modelo para decidir la siguiente acción
+- dónde quedó el log JSON incremental de pasos ejecutados
+- cuándo el video temporal se finaliza y dónde quedó el video final
+- cuándo se detecta un CAPTCHA y se abre una ventana manual de 10s para resolverlo
 
 ---
 
@@ -156,6 +220,13 @@ En cada iteración el observador extrae:
 
 La IA recibe el objetivo original + estado actual y responde **JSON estricto** con la siguiente acción:
 
+En cada petición al modelo, además del estado estructurado, el agente envía:
+
+- el **objetivo general** (recordatorio explícito)
+- el historial reciente de **pasos ya ejecutados**
+- la **ruta del log JSON** incremental de pasos
+- la **screenshot actual** (entrada multimodal) para mejorar decisiones sobre qué botón/campo usar
+
 ```json
 {
   "thought": "explicación breve",
@@ -186,6 +257,7 @@ La IA recibe el objetivo original + estado actual y responde **JSON estricto** c
 - Si un elemento no se encuentra: captura screenshot y reintenta con nueva decisión de IA.
 - Si la IA propone una acción con selector faltante o inválido, el agente la omite y continúa intentando.
 - Si la IA propone una acción que requiere valor y no lo trae, el agente la omite y continúa intentando.
+- Si se detecta CAPTCHA visible, el flujo pausa **10 segundos** para intervención humana (click/resolución manual) y luego continúa automáticamente.
 - Reintenta acciones cuando la página está cambiando (navegación/DOM refresh) para no detenerse por errores transitorios.
 - Reintenta observación del estado de página cuando el contenido está en transición.
 - Si la IA repite la misma acción más de 3 veces: detiene ejecución.

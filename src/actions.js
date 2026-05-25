@@ -17,8 +17,45 @@ const ACTIONS = {
   UPLOAD: 'upload'
 };
 
+const CAPTCHA_WAIT_MS = 10000;
 const VISUAL_CURSOR_ID = '__browser_agent_visual_cursor__';
 const mouseState = new WeakMap();
+
+async function detectCaptcha(page) {
+  const captchaSelectors = [
+    'iframe[src*="recaptcha"]',
+    'iframe[src*="hcaptcha"]',
+    'iframe[title*="captcha"]',
+    '[id*="captcha"]',
+    '[class*="captcha"]',
+    'textarea[name="g-recaptcha-response"]',
+    'textarea[name="h-captcha-response"]'
+  ];
+
+  for (const selector of captchaSelectors) {
+    const locator = page.locator(selector).first();
+    const count = await locator.count().catch(() => 0);
+    if (count === 0) continue;
+
+    const visible = await locator.isVisible().catch(() => true);
+    if (visible) {
+      return true;
+    }
+  }
+
+  const captchaText = page
+    .getByText(/captcha|no soy un robot|i am not a robot|verify you are human|verifica que eres humano/i)
+    .first();
+  const textCount = await captchaText.count().catch(() => 0);
+  if (textCount > 0) {
+    const textVisible = await captchaText.isVisible().catch(() => true);
+    if (textVisible) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function randomBetween(min, max) {
   return min + Math.random() * (max - min);
@@ -311,6 +348,15 @@ async function setupDialogHandler(page) {
 }
 
 async function handleTransientUi(page) {
+  const captchaDetected = await detectCaptcha(page);
+  if (captchaDetected) {
+    console.warn(
+      `[Captcha] Se detectó CAPTCHA. Pausando ${CAPTCHA_WAIT_MS / 1000}s para resolución manual por humano...`
+    );
+    await page.waitForTimeout(CAPTCHA_WAIT_MS).catch(() => {});
+    console.log('[Captcha] Ventana manual finalizada. Reanudando flujo automatizado...');
+  }
+
   const closeCandidates = [
     'button:has-text("Aceptar")',
     'button:has-text("Cerrar")',

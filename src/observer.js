@@ -119,6 +119,9 @@ async function observePage(page, { screenshotDir, step, retries = 3, retryBaseWa
     );
 
     try {
+      console.log(
+        `[Observer][Paso ${step}] Capturando screenshot de observación (intento ${attempt}/${retries}): ${screenshotPath}`
+      );
       await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
 
       const [url, title, content] = await Promise.all([
@@ -140,10 +143,17 @@ async function observePage(page, { screenshotDir, step, retries = 3, retryBaseWa
         screenshotPath
       };
 
+      console.log(
+        `[Observer][Paso ${step}] Estado capturado correctamente: url=${url}, botones=${state.buttons.length}, links=${state.links.length}, campos=${state.fields.length}`
+      );
+
       return state;
     } catch (error) {
       lastError = error;
       const retryable = isTransientObservationError(error);
+      console.warn(
+        `[Observer][Paso ${step}] Fallo de observación en intento ${attempt}/${retries}: ${error.message}`
+      );
       if (!retryable || attempt >= retries) {
         break;
       }

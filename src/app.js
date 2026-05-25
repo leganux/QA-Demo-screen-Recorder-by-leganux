@@ -114,19 +114,31 @@ async function main() {
           args.browserErrorLog === true ||
           String(args.browserErrorLog || '').toLowerCase() === 'true';
 
+  console.log('[App] Iniciando Browser Agent Recorder...');
+  console.log(`[App] Configuración inicial -> clearCache=${clearCache}, humanCursor=${humanCursor}, browserErrorLog=${browserErrorLog}`);
+  console.log(
+    `[App] Directorios -> videos=${config.outputDir}, screenshots=${config.screenshotDir}, sesión=${config.sessionDir}, logs=${config.logsDir}`
+  );
+
   const askedInputs = await askMissingInputs({ url, prompt });
   url = askedInputs.url;
   prompt = askedInputs.prompt;
 
+  console.log(`[App] URL objetivo: ${url}`);
+  console.log(`[App] Prompt recibido (${String(prompt).length} caracteres)`);
+
   validateCli({ url, prompt });
 
+  console.log('[App] Preparando directorios de trabajo...');
   await prepareDirectories(config.outputDir, config.screenshotDir, config.sessionDir, config.logsDir);
+  console.log('[App] Directorios listos.');
 
   let session;
   let pageVideo;
   let rawVideoPath = '';
 
   try {
+    console.log('[App] Iniciando sesión de navegador...');
     session = await startBrowserSession({
       url,
       viewport: config.viewport,
@@ -137,10 +149,18 @@ async function main() {
       enableBrowserErrorLog: browserErrorLog
     });
 
+    console.log('[App] Sesión de navegador iniciada correctamente.');
+
     const { page } = session;
     pageVideo = page.video();
 
-    console.log('Grabando video...');
+    if (pageVideo) {
+      console.log('[App] Grabación de video activa para la página actual.');
+    } else {
+      console.warn('[App] No se detectó stream de video en la página.');
+    }
+
+    console.log('[App] Ejecutando agente...');
     const result = await runAgent({
       page,
       prompt,
@@ -149,32 +169,49 @@ async function main() {
       enableHumanCursor: humanCursor
     });
 
+    if (result.stepsLogPath) {
+      console.log(`[App] Log JSON de pasos del agente: ${result.stepsLogPath}`);
+    }
+
     if (result.ok) {
-      console.log('Tarea completada.');
+      console.log(`[App] Tarea completada en ${result.steps} pasos.`);
     } else {
-      console.log(`Tarea finalizada con advertencias: ${result.reason}`);
+      console.log(`[App] Tarea finalizada con advertencias: ${result.reason}`);
     }
   } catch (error) {
-    console.error(`Error general: ${error.message}`);
+    console.error(`[App] Error general: ${error.message}`);
     process.exitCode = 1;
   } finally {
     if (session) {
+      console.log('[App] Cerrando sesión de navegador...');
       await closeBrowserSession(session);
+      console.log('[App] Sesión de navegador cerrada.');
     }
 
     if (pageVideo) {
+      console.log('[App] Recuperando ruta de video temporal...');
       rawVideoPath = await pageVideo.path().catch(() => '');
+      if (rawVideoPath) {
+        console.log(`[App] Video temporal detectado: ${rawVideoPath}`);
+      } else {
+        console.warn('[App] No se obtuvo ruta de video temporal.');
+      }
     }
 
     try {
+      console.log('[App] Finalizando video (moviendo a carpeta final)...');
       const finalVideoPath = await finalizeVideo(rawVideoPath, config.outputDir, 'tutorial');
       if (finalVideoPath) {
-        console.log(`Video generado en: ${finalVideoPath}`);
+        console.log(`[App] Video generado en: ${finalVideoPath}`);
+      } else {
+        console.warn('[App] No se generó video final en esta ejecución.');
       }
     } catch (error) {
-      console.error(`No fue posible mover el video final: ${error.message}`);
+      console.error(`[App] No fue posible mover el video final: ${error.message}`);
       process.exitCode = 1;
     }
+
+    console.log('[App] Proceso finalizado.');
   }
 }
 

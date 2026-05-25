@@ -4,7 +4,8 @@
   "description": "MVP de agente de navegador con Playwright + OpenAI para automatizar tareas y grabar video",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js"
+    "start": "node src/app.js",
+    "web": "node src/web.js"
   },
   "keywords": [
     "playwright",
